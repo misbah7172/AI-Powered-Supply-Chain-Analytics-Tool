@@ -1,0 +1,885 @@
+"""
+Export tools for the Supply Chain Analytics tool.
+Provides functionality to export data as PDF, Excel, CSV, and PowerPoint.
+"""
+
+import pandas as pd
+import numpy as np
+import streamlit as st
+import pdfkit
+import base64
+import io
+import os
+import json
+from datetime import datetime
+import matplotlib.pyplot as plt
+import plotly.io as pio
+from PIL import Image
+
+class DataExporter:
+    """
+    Class for exporting data in different formats.
+    """
+    
+    def export_to_csv(self, df, filename=None):
+        """
+        Export DataFrame to CSV.
+        
+        Parameters:
+        -----------
+        df : pandas.DataFrame
+            DataFrame to export
+        filename : str, optional
+            Filename to use, or auto-generated if None
+            
+        Returns:
+        --------
+        str
+            Base64 encoded string representing the file for download
+        """
+        if filename is None:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"export_{timestamp}.csv"
+        
+        # Create a CSV string from the DataFrame
+        csv = df.to_csv(index=False)
+        
+        # Encode to base64
+        b64 = base64.b64encode(csv.encode()).decode()
+        
+        return b64, filename
+    
+    def export_to_excel(self, dfs, sheet_names=None, filename=None):
+        """
+        Export one or more DataFrames to Excel.
+        
+        Parameters:
+        -----------
+        dfs : pandas.DataFrame or list of pandas.DataFrame
+            DataFrame(s) to export
+        sheet_names : list of str, optional
+            Names for the sheets
+        filename : str, optional
+            Filename to use, or auto-generated if None
+            
+        Returns:
+        --------
+        str
+            Base64 encoded string representing the file for download
+        """
+        if filename is None:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"export_{timestamp}.xlsx"
+        
+        # Convert single DataFrame to list if needed
+        if not isinstance(dfs, list):
+            dfs = [dfs]
+        
+        # Create default sheet names if not provided
+        if sheet_names is None or len(sheet_names) != len(dfs):
+            sheet_names = [f"Sheet{i+1}" for i in range(len(dfs))]
+        
+        # Write to Excel
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            for df, sheet_name in zip(dfs, sheet_names):
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+        
+        # Get the bytes from the BytesIO object
+        excel_data = output.getvalue()
+        
+        # Encode to base64
+        b64 = base64.b64encode(excel_data).decode()
+        
+        return b64, filename
+    
+    def export_to_pdf(self, content, title="Supply Chain Analytics Report", filename=None):
+        """
+        Export content to PDF.
+        
+        Parameters:
+        -----------
+        content : str
+            HTML content to convert to PDF
+        title : str
+            Title of the PDF document
+        filename : str, optional
+            Filename to use, or auto-generated if None
+            
+        Returns:
+        --------
+        str
+            Base64 encoded string representing the file for download
+        """
+        if filename is None:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"report_{timestamp}.pdf"
+        
+        # Create a temporary HTML file
+        html_filename = "temp_report.html"
+        
+        # Add HTML header with styling
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>{title}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                h1 {{ color: #2e608a; }}
+                h2 {{ color: #3b7ea7; margin-top: 30px; }}
+                h3 {{ color: #499ad5; }}
+                table {{ border-collapse: collapse; width: 100%; margin: 15px 0; }}
+                th, td {{ text-align: left; padding: 8px; border: 1px solid #ddd; }}
+                th {{ background-color: #f2f2f2; }}
+                tr:nth-child(even) {{ background-color: #f9f9f9; }}
+                .header {{ background-color: #2e608a; color: white; padding: 10px; }}
+                .footer {{ background-color: #f2f2f2; padding: 10px; text-align: center; font-size: 12px; }}
+                .timestamp {{ font-style: italic; color: #777; }}
+                img {{ max-width: 100%; height: auto; }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>{title}</h1>
+                <p class="timestamp">Generated on {datetime.now().strftime('%B %d, %Y at %H:%M')}</p>
+            </div>
+            {content}
+            <div class="footer">
+                <p>Generated by Supply Chain Analytics Tool</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Save HTML content to a temporary file
+        with open(html_filename, 'w') as f:
+            f.write(html_content)
+        
+        try:
+            # Use pdfkit to convert HTML to PDF
+            options = {
+                'page-size': 'A4',
+                'margin-top': '15mm',
+                'margin-right': '15mm',
+                'margin-bottom': '15mm',
+                'margin-left': '15mm',
+                'encoding': 'UTF-8',
+                'no-outline': None
+            }
+            
+            # Create PDF in memory
+            pdf = pdfkit.from_file(html_filename, False, options=options)
+            
+            # Encode to base64
+            b64 = base64.b64encode(pdf).decode()
+            
+            # Clean up temporary file
+            if os.path.exists(html_filename):
+                os.remove(html_filename)
+                
+            return b64, filename
+            
+        except Exception as e:
+            st.error(f"Error generating PDF: {str(e)}")
+            
+            # Clean up temporary file
+            if os.path.exists(html_filename):
+                os.remove(html_filename)
+                
+            return None, filename
+    
+    def export_to_json(self, data, filename=None):
+        """
+        Export data to JSON.
+        
+        Parameters:
+        -----------
+        data : dict or list
+            Data to export
+        filename : str, optional
+            Filename to use, or auto-generated if None
+            
+        Returns:
+        --------
+        str
+            Base64 encoded string representing the file for download
+        """
+        if filename is None:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"export_{timestamp}.json"
+        
+        # If data is a DataFrame, convert to records
+        if isinstance(data, pd.DataFrame):
+            data = data.to_dict(orient='records')
+        
+        # Convert to JSON
+        json_str = json.dumps(data, indent=2, default=str)
+        
+        # Encode to base64
+        b64 = base64.b64encode(json_str.encode()).decode()
+        
+        return b64, filename
+    
+    def dataframe_to_html_table(self, df, max_rows=None):
+        """
+        Convert DataFrame to HTML table.
+        
+        Parameters:
+        -----------
+        df : pandas.DataFrame
+            DataFrame to convert
+        max_rows : int, optional
+            Maximum number of rows to include
+            
+        Returns:
+        --------
+        str
+            HTML table representation of the DataFrame
+        """
+        # Limit rows if needed
+        if max_rows is not None and len(df) > max_rows:
+            df = df.head(max_rows)
+            
+        # Convert to HTML
+        table_html = df.to_html(index=False, classes='dataframe')
+        
+        return table_html
+    
+    def figure_to_html(self, fig, width='100%', height='400px'):
+        """
+        Convert a Plotly figure to HTML.
+        
+        Parameters:
+        -----------
+        fig : plotly.graph_objects.Figure
+            Plotly figure to convert
+        width : str
+            Width of the figure
+        height : str
+            Height of the figure
+            
+        Returns:
+        --------
+        str
+            HTML representation of the figure
+        """
+        if hasattr(fig, 'to_html'):
+            # For Plotly figures
+            return fig.to_html(include_plotlyjs='cdn', full_html=False, config={'responsive': True})
+        elif hasattr(fig, 'savefig'):
+            # For Matplotlib figures
+            img_buf = io.BytesIO()
+            fig.savefig(img_buf, format='png', bbox_inches='tight')
+            img_data = base64.b64encode(img_buf.getvalue()).decode('utf-8')
+            
+            return f'<img src="data:image/png;base64,{img_data}" style="width:{width};height:{height};">'
+        else:
+            return "<p>Figure could not be converted to HTML.</p>"
+    
+    def create_download_link(self, b64, filename, text="Download"):
+        """
+        Create an HTML download link for a base64 encoded file.
+        
+        Parameters:
+        -----------
+        b64 : str
+            Base64 encoded file data
+        filename : str
+            Name of the file for download
+        text : str
+            Text to display for the download link
+            
+        Returns:
+        --------
+        str
+            HTML anchor tag with download link
+        """
+        # Determine MIME type based on file extension
+        mime_type = "application/octet-stream"  # Default
+        
+        if filename.endswith('.csv'):
+            mime_type = "text/csv"
+        elif filename.endswith('.xlsx'):
+            mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        elif filename.endswith('.pdf'):
+            mime_type = "application/pdf"
+        elif filename.endswith('.json'):
+            mime_type = "application/json"
+        
+        # Create the download link
+        href = f'<a href="data:{mime_type};base64,{b64}" download="{filename}">{text}</a>'
+        
+        return href
+    
+    def create_report_html(self, title, sections):
+        """
+        Create a report in HTML format.
+        
+        Parameters:
+        -----------
+        title : str
+            Title of the report
+        sections : list of dict
+            List of sections, each containing:
+            - 'title': Section title
+            - 'content': Section content (HTML)
+            
+        Returns:
+        --------
+        str
+            Complete HTML content for the report
+        """
+        # Create HTML content
+        html_content = f"<h1>{title}</h1>\n"
+        
+        # Add sections
+        for i, section in enumerate(sections):
+            section_title = section.get('title', f"Section {i+1}")
+            section_content = section.get('content', '')
+            
+            html_content += f"<h2>{section_title}</h2>\n"
+            html_content += f"{section_content}\n"
+        
+        return html_content
+    
+    def create_dashboard_report(self, title, metrics, figures=None, tables=None):
+        """
+        Create a dashboard report with metrics, figures, and tables.
+        
+        Parameters:
+        -----------
+        title : str
+            Title of the report
+        metrics : dict
+            Dictionary of metrics to display
+        figures : dict, optional
+            Dictionary of figures to include
+        tables : dict, optional
+            Dictionary of DataFrames to include as tables
+            
+        Returns:
+        --------
+        str
+            HTML content for the dashboard report
+        """
+        # Create sections list
+        sections = []
+        
+        # Add metrics section
+        metrics_html = "<div class='metrics'>\n"
+        metrics_html += "<table>\n<tr>\n"
+        
+        # Add metrics in two columns
+        metrics_items = list(metrics.items())
+        for i in range(0, len(metrics_items), 2):
+            metrics_html += "<tr>\n"
+            
+            # First column
+            key, value = metrics_items[i]
+            formatted_value = value
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                if abs(value) >= 1000000:
+                    formatted_value = f"{value/1000000:.2f}M"
+                elif abs(value) >= 1000:
+                    formatted_value = f"{value/1000:.1f}K"
+                elif isinstance(value, float):
+                    formatted_value = f"{value:.2f}"
+            metrics_html += f"<td><strong>{key}:</strong></td><td>{formatted_value}</td>\n"
+            
+            # Second column (if available)
+            if i + 1 < len(metrics_items):
+                key, value = metrics_items[i + 1]
+                formatted_value = value
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    if abs(value) >= 1000000:
+                        formatted_value = f"{value/1000000:.2f}M"
+                    elif abs(value) >= 1000:
+                        formatted_value = f"{value/1000:.1f}K"
+                    elif isinstance(value, float):
+                        formatted_value = f"{value:.2f}"
+                metrics_html += f"<td><strong>{key}:</strong></td><td>{formatted_value}</td>\n"
+            else:
+                metrics_html += "<td></td><td></td>\n"
+                
+            metrics_html += "</tr>\n"
+            
+        metrics_html += "</table>\n</div>\n"
+        
+        sections.append({
+            'title': 'Key Metrics',
+            'content': metrics_html
+        })
+        
+        # Add figures section if available
+        if figures and len(figures) > 0:
+            figures_html = ""
+            for name, fig in figures.items():
+                figures_html += f"<h3>{name}</h3>\n"
+                figures_html += self.figure_to_html(fig)
+                figures_html += "<hr>\n"
+            
+            sections.append({
+                'title': 'Visualizations',
+                'content': figures_html
+            })
+        
+        # Add tables section if available
+        if tables and len(tables) > 0:
+            tables_html = ""
+            for name, df in tables.items():
+                tables_html += f"<h3>{name}</h3>\n"
+                tables_html += self.dataframe_to_html_table(df, max_rows=20)
+                tables_html += "<hr>\n"
+            
+            sections.append({
+                'title': 'Data Tables',
+                'content': tables_html
+            })
+        
+        # Create the complete report
+        return self.create_report_html(title, sections)
+    
+    def streamlit_download_button(self, data, file_format, label="Download", filename_prefix="export"):
+        """
+        Create a Streamlit download button for various file formats.
+        
+        Parameters:
+        -----------
+        data : varies
+            Data to export (DataFrame, dict, html string, etc.)
+        file_format : str
+            Format to export ('csv', 'excel', 'pdf', 'json')
+        label : str
+            Label for the download button
+        filename_prefix : str
+            Prefix for the filename
+            
+        Returns:
+        --------
+        None
+            Creates a Streamlit download button
+        """
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        if file_format == 'csv':
+            if isinstance(data, pd.DataFrame):
+                filename = f"{filename_prefix}_{timestamp}.csv"
+                csv = data.to_csv(index=False)
+                st.download_button(label=label, data=csv, file_name=filename, mime="text/csv")
+            else:
+                st.error("CSV export requires a DataFrame")
+                
+        elif file_format == 'excel':
+            filename = f"{filename_prefix}_{timestamp}.xlsx"
+            output = io.BytesIO()
+            
+            # Handle single DataFrame or list of DataFrames
+            if isinstance(data, pd.DataFrame):
+                data = [data]
+                sheet_names = ["Sheet1"]
+            elif isinstance(data, dict):
+                sheet_names = list(data.keys())
+                data = list(data.values())
+            elif isinstance(data, list) and all(isinstance(df, pd.DataFrame) for df in data):
+                sheet_names = [f"Sheet{i+1}" for i in range(len(data))]
+            else:
+                st.error("Excel export requires DataFrame(s)")
+                return
+            
+            # Write to Excel
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                for df, sheet_name in zip(data, sheet_names):
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+            
+            excel_data = output.getvalue()
+            st.download_button(label=label, data=excel_data, file_name=filename, 
+                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            
+        elif file_format == 'pdf':
+            filename = f"{filename_prefix}_{timestamp}.pdf"
+            
+            if isinstance(data, str):
+                # Assume data is HTML content
+                try:
+                    options = {
+                        'page-size': 'A4',
+                        'margin-top': '15mm',
+                        'margin-right': '15mm',
+                        'margin-bottom': '15mm',
+                        'margin-left': '15mm',
+                        'encoding': 'UTF-8'
+                    }
+                    
+                    # Create a temporary HTML file
+                    html_filename = "temp_export.html"
+                    with open(html_filename, 'w') as f:
+                        f.write(data)
+                    
+                    # Convert to PDF
+                    pdf = pdfkit.from_file(html_filename, False, options=options)
+                    
+                    # Clean up temporary file
+                    if os.path.exists(html_filename):
+                        os.remove(html_filename)
+                    
+                    st.download_button(label=label, data=pdf, file_name=filename, mime="application/pdf")
+                    
+                except Exception as e:
+                    st.error(f"Error generating PDF: {str(e)}")
+            else:
+                st.error("PDF export requires HTML content as a string")
+                
+        elif file_format == 'json':
+            filename = f"{filename_prefix}_{timestamp}.json"
+            
+            # Convert data to JSON
+            if isinstance(data, pd.DataFrame):
+                json_data = data.to_json(orient='records', date_format='iso')
+            elif isinstance(data, (dict, list)):
+                json_data = json.dumps(data, default=str, indent=2)
+            else:
+                st.error("JSON export requires a DataFrame, dict, or list")
+                return
+            
+            st.download_button(label=label, data=json_data, file_name=filename, mime="application/json")
+            
+        else:
+            st.error(f"Unsupported file format: {file_format}")
+
+class APIExporter:
+    """
+    Class for creating APIs to expose data.
+    """
+    
+    def generate_api_docs(self, endpoints):
+        """
+        Generate API documentation for the available endpoints.
+        
+        Parameters:
+        -----------
+        endpoints : list of dict
+            List of endpoint information, each containing:
+            - 'path': API path
+            - 'method': HTTP method
+            - 'description': Endpoint description
+            - 'parameters': List of parameter descriptions
+            - 'response': Response format description
+            
+        Returns:
+        --------
+        str
+            HTML content with API documentation
+        """
+        html = """
+        <h1>Supply Chain Analytics API Documentation</h1>
+        <p>This API provides access to supply chain analytics data and insights.</p>
+        """
+        
+        # Add endpoints
+        for endpoint in endpoints:
+            path = endpoint.get('path', '')
+            method = endpoint.get('method', 'GET')
+            description = endpoint.get('description', '')
+            parameters = endpoint.get('parameters', [])
+            response = endpoint.get('response', '')
+            
+            html += f"""
+            <div class="endpoint">
+                <h2>{method} {path}</h2>
+                <p>{description}</p>
+                
+                <h3>Parameters</h3>
+                <ul>
+            """
+            
+            # Add parameters
+            for param in parameters:
+                html += f"<li><code>{param['name']}</code> ({param['type']}): {param['description']}</li>"
+            
+            html += """
+                </ul>
+                
+                <h3>Response</h3>
+                <pre>{response}</pre>
+            </div>
+            """
+        
+        return html
+    
+    def create_sample_api_config(self):
+        """
+        Create a sample API configuration.
+        
+        Returns:
+        --------
+        list
+            List of endpoint configurations
+        """
+        endpoints = [
+            {
+                'path': '/api/v1/shipments',
+                'method': 'GET',
+                'description': 'Get shipment data with optional filtering.',
+                'parameters': [
+                    {'name': 'area', 'type': 'string', 'description': 'Filter by area name'},
+                    {'name': 'start_date', 'type': 'string', 'description': 'Filter by start date (YYYY-MM-DD)'},
+                    {'name': 'end_date', 'type': 'string', 'description': 'Filter by end date (YYYY-MM-DD)'},
+                    {'name': 'limit', 'type': 'integer', 'description': 'Maximum number of records to return'}
+                ],
+                'response': '{"shipments": [...], "count": 42, "status": "success"}'
+            },
+            {
+                'path': '/api/v1/sales',
+                'method': 'GET',
+                'description': 'Get sales data with optional filtering.',
+                'parameters': [
+                    {'name': 'area', 'type': 'string', 'description': 'Filter by area name'},
+                    {'name': 'start_date', 'type': 'string', 'description': 'Filter by start date (YYYY-MM-DD)'},
+                    {'name': 'end_date', 'type': 'string', 'description': 'Filter by end date (YYYY-MM-DD)'},
+                    {'name': 'limit', 'type': 'integer', 'description': 'Maximum number of records to return'}
+                ],
+                'response': '{"sales": [...], "count": 42, "status": "success"}'
+            },
+            {
+                'path': '/api/v1/inventory',
+                'method': 'GET',
+                'description': 'Get inventory data with optional filtering.',
+                'parameters': [
+                    {'name': 'area', 'type': 'string', 'description': 'Filter by area name'},
+                    {'name': 'product_category', 'type': 'string', 'description': 'Filter by product category'},
+                    {'name': 'limit', 'type': 'integer', 'description': 'Maximum number of records to return'}
+                ],
+                'response': '{"inventory": [...], "count": 42, "status": "success"}'
+            },
+            {
+                'path': '/api/v1/forecast',
+                'method': 'GET',
+                'description': 'Get demand forecast for a specific area and product category.',
+                'parameters': [
+                    {'name': 'area', 'type': 'string', 'description': 'Area name'},
+                    {'name': 'product_category', 'type': 'string', 'description': 'Product category'},
+                    {'name': 'periods', 'type': 'integer', 'description': 'Number of periods to forecast'}
+                ],
+                'response': '{"forecast": [...], "model_info": {...}, "status": "success"}'
+            },
+            {
+                'path': '/api/v1/optimize',
+                'method': 'POST',
+                'description': 'Run optimization for inventory or shipping.',
+                'parameters': [
+                    {'name': 'type', 'type': 'string', 'description': 'Type of optimization (inventory, route)'},
+                    {'name': 'params', 'type': 'object', 'description': 'Optimization parameters'}
+                ],
+                'response': '{"optimization_results": {...}, "status": "success"}'
+            }
+        ]
+        
+        return endpoints
+
+class AlertManager:
+    """
+    Class for managing and sending alerts.
+    """
+    
+    def __init__(self):
+        """Initialize the alert manager."""
+        self.alert_types = {
+            'inventory': 'Low inventory alert',
+            'shipment': 'Delayed shipment alert',
+            'demand': 'Unexpected demand surge',
+            'cost': 'Cost increase alert',
+            'performance': 'Performance metric alert'
+        }
+    
+    def check_inventory_alerts(self, inventory_data, threshold=0.2):
+        """
+        Check for low inventory alerts.
+        
+        Parameters:
+        -----------
+        inventory_data : pandas.DataFrame
+            DataFrame containing inventory data
+        threshold : float
+            Threshold for low inventory (as a ratio of normal levels)
+            
+        Returns:
+        --------
+        list
+            List of inventory alerts
+        """
+        alerts = []
+        
+        if 'remaining_stock' in inventory_data.columns and 'area' in inventory_data.columns:
+            # Group by area and product category
+            grouped = inventory_data.groupby(['area', 'product_category'])
+            
+            for (area, product), group in grouped:
+                # Calculate average stock level
+                avg_stock = group['remaining_stock'].mean()
+                
+                # Get the latest stock level
+                latest = group.sort_values('date' if 'date' in group.columns else 'inventory_date').iloc[-1]
+                current_stock = latest['remaining_stock']
+                
+                # Check if current stock is below threshold
+                if current_stock < avg_stock * threshold:
+                    alerts.append({
+                        'type': 'inventory',
+                        'severity': 'high' if current_stock < avg_stock * 0.1 else 'medium',
+                        'area': area,
+                        'product_category': product,
+                        'current_stock': current_stock,
+                        'average_stock': avg_stock,
+                        'threshold_ratio': threshold,
+                        'timestamp': datetime.now().isoformat(),
+                        'message': f"Low inventory alert: {area} has only {current_stock} units of {product} remaining (below {threshold*100}% of average)"
+                    })
+        
+        return alerts
+    
+    def check_shipment_alerts(self, shipment_data):
+        """
+        Check for delayed shipment alerts.
+        
+        Parameters:
+        -----------
+        shipment_data : pandas.DataFrame
+            DataFrame containing shipment data
+            
+        Returns:
+        --------
+        list
+            List of shipment alerts
+        """
+        alerts = []
+        
+        if 'delivery_time_days' in shipment_data.columns and 'area' in shipment_data.columns:
+            # Calculate average delivery time by area
+            avg_delivery_times = shipment_data.groupby('area')['delivery_time_days'].mean()
+            
+            for area, group in shipment_data.groupby('area'):
+                # Calculate threshold (1.5x average)
+                threshold = avg_delivery_times[area] * 1.5
+                
+                # Find delayed shipments
+                delayed = group[group['delivery_time_days'] > threshold]
+                
+                for _, row in delayed.iterrows():
+                    alerts.append({
+                        'type': 'shipment',
+                        'severity': 'medium',
+                        'area': area,
+                        'delivery_time': row['delivery_time_days'],
+                        'average_time': avg_delivery_times[area],
+                        'timestamp': datetime.now().isoformat(),
+                        'message': f"Delayed shipment alert: Shipment to {area} is taking {row['delivery_time_days']:.1f} days (average is {avg_delivery_times[area]:.1f} days)"
+                    })
+        
+        return alerts
+    
+    def check_demand_alerts(self, sales_data):
+        """
+        Check for unexpected demand surge alerts.
+        
+        Parameters:
+        -----------
+        sales_data : pandas.DataFrame
+            DataFrame containing sales data
+            
+        Returns:
+        --------
+        list
+            List of demand alerts
+        """
+        alerts = []
+        
+        if 'units_sold' in sales_data.columns and 'area' in sales_data.columns:
+            # Group by area and product category
+            grouped = sales_data.groupby(['area', 'product_category'])
+            
+            for (area, product), group in grouped:
+                # Calculate average and standard deviation of units sold
+                avg_sold = group['units_sold'].mean()
+                std_sold = group['units_sold'].std()
+                
+                # Define surge threshold (2 standard deviations above mean)
+                surge_threshold = avg_sold + 2 * std_sold
+                
+                # Find demand surges
+                surges = group[group['units_sold'] > surge_threshold]
+                
+                for _, row in surges.iterrows():
+                    alerts.append({
+                        'type': 'demand',
+                        'severity': 'medium',
+                        'area': area,
+                        'product_category': product,
+                        'units_sold': row['units_sold'],
+                        'average_sold': avg_sold,
+                        'timestamp': datetime.now().isoformat(),
+                        'message': f"Demand surge alert: {area} sold {row['units_sold']} units of {product} (average is {avg_sold:.1f} units)"
+                    })
+        
+        return alerts
+    
+    def get_all_alerts(self, shipment_data, sales_data, inventory_data):
+        """
+        Get all alerts across different types.
+        
+        Parameters:
+        -----------
+        shipment_data : pandas.DataFrame
+            DataFrame containing shipment data
+        sales_data : pandas.DataFrame
+            DataFrame containing sales data
+        inventory_data : pandas.DataFrame
+            DataFrame containing inventory data
+            
+        Returns:
+        --------
+        list
+            List of all alerts
+        """
+        all_alerts = []
+        
+        # Check each alert type
+        all_alerts.extend(self.check_inventory_alerts(inventory_data))
+        all_alerts.extend(self.check_shipment_alerts(shipment_data))
+        all_alerts.extend(self.check_demand_alerts(sales_data))
+        
+        # Sort by severity
+        severity_order = {'high': 0, 'medium': 1, 'low': 2}
+        all_alerts.sort(key=lambda x: severity_order.get(x.get('severity', 'low'), 3))
+        
+        return all_alerts
+    
+    def format_alerts_for_display(self, alerts):
+        """
+        Format alerts for display in Streamlit.
+        
+        Parameters:
+        -----------
+        alerts : list
+            List of alert dictionaries
+            
+        Returns:
+        --------
+        pandas.DataFrame
+            DataFrame with formatted alerts
+        """
+        if not alerts:
+            return pd.DataFrame(columns=['Type', 'Severity', 'Area', 'Message'])
+        
+        # Create DataFrame from alerts
+        alert_df = pd.DataFrame([
+            {
+                'Type': alert.get('type', '').title(),
+                'Severity': alert.get('severity', '').title(),
+                'Area': alert.get('area', ''),
+                'Message': alert.get('message', '')
+            }
+            for alert in alerts
+        ])
+        
+        return alert_df
