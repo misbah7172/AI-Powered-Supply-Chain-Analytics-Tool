@@ -1,0 +1,51 @@
+area,date,remaining_stock
+New York,2023-01-31,150
+New York,2023-02-28,330
+New York,2023-03-31,480
+New York,2023-04-30,680
+New York,2023-05-31,880
+Los Angeles,2023-01-31,150
+Los Angeles,2023-02-28,300
+Los Angeles,2023-03-31,450
+Los Angeles,2023-04-30,650
+Los Angeles,2023-05-31,800
+Chicago,2023-01-31,100
+Chicago,2023-02-28,220
+Chicago,2023-03-31,370
+Chicago,2023-04-30,520
+Chicago,2023-05-31,670
+Houston,2023-01-31,70
+Houston,2023-02-28,150
+Houston,2023-03-31,250
+Houston,2023-04-30,350
+Houston,2023-05-31,450
+Phoenix,2023-01-31,70
+Phoenix,2023-02-28,140
+Phoenix,2023-03-31,240
+Phoenix,2023-04-30,320
+Phoenix,2023-05-31,420
+Philadelphia,2023-01-31,60
+Philadelphia,2023-02-28,110
+Philadelphia,2023-03-31,170
+Philadelphia,2023-04-30,230
+Philadelphia,2023-05-31,300
+San Antonio,2023-01-31,50
+San Antonio,2023-02-28,100
+San Antonio,2023-03-31,170
+San Antonio,2023-04-30,240
+San Antonio,2023-05-31,320
+San Diego,2023-01-31,30
+San Diego,2023-02-28,60
+San Diego,2023-03-31,100
+San Diego,2023-04-30,140
+San Diego,2023-05-31,190
+Dallas,2023-01-31,50
+Dallas,2023-02-28,100
+Dallas,2023-03-31,170
+Dallas,2023-04-30,240
+Dallas,2023-05-31,330
+San Jose,2023-01-31,50
+San Jose,2023-02-28,100
+San Jose,2023-03-31,180
+San Jose,2023-04-30,250
+San Jose,2023-05-31,330

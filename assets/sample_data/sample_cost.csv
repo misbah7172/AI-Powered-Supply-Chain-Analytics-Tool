@@ -1,0 +1,11 @@
+area,transportation_cost,warehouse_cost,handling_cost,total_operating_cost
+New York,15000,8000,5000,28000
+Los Angeles,13500,7500,4500,25500
+Chicago,9500,5500,3000,18000
+Houston,8000,4500,2500,15000
+Phoenix,6000,3500,2000,11500
+Philadelphia,7000,4000,2200,13200
+San Antonio,5000,3000,1800,9800
+San Diego,5500,3200,1900,10600
+Dallas,8500,4800,2700,16000
+San Jose,7500,4300,2400,14200
