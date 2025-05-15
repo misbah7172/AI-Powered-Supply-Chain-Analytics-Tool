@@ -27,8 +27,8 @@ st.title("Geographic Visualization")
 st.markdown("Visualize your supply chain performance on an interactive map.")
 
 # Display geo visualization image
-st.image("https://pixabay.com/get/g09383d61dbcb4739707869cffa8852c0c9ddd54342cdf7333bc1086b683ffbd4fd2c6edcc9a105caa7d52134b5781cf16dd6c75fae9d7cf89d6fa2a7052ebe72_1280.jpg", 
-         caption="Geographic Supply Chain Visualization", use_container_width=True)
+st.image("https://pixabay.com/get/g09383d61dbcb4739707869cffa8852c0c9ddd54342cdf7333bc1086b683ffbd4fd2c6edcc9a105caa7d52134b5781cf16dd6c75fae9d7cf89d6fa2a7052ebe72_1280.jpg",
+         caption="Geographic Visualization")
 
 # Get profitability and efficiency data
 profitability = st.session_state.data_processor.calculate_profitability()
