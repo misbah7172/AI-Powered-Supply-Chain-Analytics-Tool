@@ -79,25 +79,53 @@ if profitability is not None and efficiency is not None:
         top_n = st.slider("Number of areas to display:", min_value=3, max_value=10, value=5)
     
     # Display bar chart of top areas
-    if selected_metric in profitability.columns:
-        # Use profitability data
+    if selected_metric == 'profit' and selected_metric in profitability.columns:
+        # Check if all profits are negative
+        if (profitability['profit'] < 0).all():
+            fig = px.bar(
+                profitability.head(top_n),
+                x='area',
+                y=profitability['profit'].abs().head(top_n),
+                title="Top Areas by Profit (All Losses)",
+                color_discrete_sequence=['red']*top_n,
+                labels={'y': 'Loss (absolute value)', 'area': 'Area'}
+            )
+            fig.update_layout(yaxis_title='Loss (absolute value)', yaxis_tickformat=',')
+            st.warning("All areas are operating at a loss. Displaying absolute values of losses.")
+        else:
+            fig = px.bar(
+                profitability.head(top_n),
+                x='area',
+                y='profit',
+                title="Top Areas by Profit",
+                color='profit',
+                color_continuous_scale=[(0, 'red'), (1, 'green')],
+                labels={'profit': 'Profit', 'area': 'Area'}
+            )
+            # Color negative bars red, positive green
+            fig.update_traces(marker_color=[
+                'red' if p < 0 else 'green' for p in profitability['profit'].head(top_n)
+            ])
+            fig.update_layout(yaxis_title='Profit', yaxis_tickformat=',')
+        st.plotly_chart(fig, use_container_width=True)
+    elif selected_metric in profitability.columns:
         fig = visualizer.create_area_performance_bar_chart(
             profitability,
             metric=selected_metric,
             top_n=top_n
         )
+        if fig is not None:
+            st.plotly_chart(fig, use_container_width=True)
     elif selected_metric in efficiency.columns:
-        # Use efficiency data
         fig = visualizer.create_area_performance_bar_chart(
             efficiency,
             metric=selected_metric,
             top_n=top_n
         )
+        if fig is not None:
+            st.plotly_chart(fig, use_container_width=True)
     else:
         fig = None
-    
-    if fig is not None:
-        st.plotly_chart(fig, use_container_width=True)
     
     # Profit vs Cost Analysis
     st.header("Profit vs. Cost Analysis")
